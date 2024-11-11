@@ -2,7 +2,9 @@
 #define TINY_VECTOR_H
 
 #include <cstddef>
+#include <iostream>
 #include "allocator.h"
+
 
 namespace hstl{
 
@@ -33,45 +35,97 @@ private:
 public:
     vector() noexcept;
     explicit vector(size_type n);
-    vector(size_type n, const value_type& value);
-    vector(const vector& rhs);
-    vector(vector&& rhs) noexcept;
-    vector(std::initializer_list<value_type> ilist);
+    // vector(size_type n, const value_type& value);
+    // vector(const vector& rhs);
+    // vector(vector&& rhs) noexcept;
+    // vector(std::initializer_list<value_type> ilist);
     
-    ~vector();
+    // ~vector();
 
-    vector& operator=(const vector& rhs);
-    vector& operator=(vector&& rhs) noexcept;
-    vector& operator=(std::initializer_list<value_type> ilist);
+    // vector& operator=(const vector& rhs);
+    // vector& operator=(vector&& rhs) noexcept;
+    // vector& operator=(std::initializer_list<value_type> ilist);
 
 public:
-    iterator begin() noexcept;
-    const_iterator begin() const noexcept;
-    iterator end() noexcept;
-    const_iterator end() const noexcept;
+    // iterator begin() noexcept;
+    // const_iterator begin() const noexcept;
+    // iterator end() noexcept;
+    // const_iterator end() const noexcept;
 
     size_type size() const noexcept;
-    size_type capacity() const noexcept;
-    bool empty() const noexcept;
+    // size_type capacity() const noexcept;
+    // bool empty() const noexcept;
 
-    void reserve(size_type new_cap);
-    void resize(size_type count);
-    void resize(size_type count, const value_type& value);
+    // void reserve(size_type new_cap);
+    // void resize(size_type count);
+    // void resize(size_type count, const value_type& value);
 
-    void push_back(const value_type& value);
-    void push_back(value_type&& value);
+    // void push_back(const value_type& value);
+    // void push_back(value_type&& value);
 
-    template <typename... Args>
-    void emplace_back(Args&&... args);
+    // template <typename... Args>
+    // void emplace_back(Args&&... args);
 
-    void pop_back();
+    // void pop_back();
 
-    void clear() noexcept;
+    // void clear() noexcept;
 
-    reference operator[](size_type n);
-    const_reference operator[](size_type n) const;
+    // reference operator[](size_type n);
+    // const_reference operator[](size_type n) const;
+private:
+    void try_init() noexcept;
+    void fill_init(size_type init_size, const value_type& value);     // TODO
+    void init_place(size_type init_size, size_type init_cap);
 };
 
+template <typename T>
+vector<T>::vector() noexcept{
+    try_init();
+    
+}
+
+template <typename T>
+vector<T>::vector(size_type n){
+    
+}
+
+
+template<typename T>
+typename vector<T>::size_type vector<T>::size() const noexcept{
+    return end_ - begin_;
+}
+
+
+template <typename T>
+void vector<T>::try_init() noexcept{
+    try{
+        begin_ = data_allocator::allocate(16);
+        end_ = cap_ = begin_ + 16;
+    }catch(...){
+        begin_ = end_ = cap_ = nullptr;
+    }
+}
+
+
+template <typename T>
+void vector<T>::fill_init(size_type init_size, const value_type& value){
+    const size_type init_cap = std::max(static_cast<size_type>(16), init_size);
+    init_place(init_size, init_cap);
+       
+}
+
+
+template <typename T>
+void vector<T>::init_place(size_type init_size, size_type init_cap){
+    try{
+        begin_ = data_allocator::allocate(init_cap);
+        end_ = begin_ + init_size;
+        cap_ = begin_ + init_cap;
+    }catch(...){
+        begin_ = end_ = cap_ = nullptr;
+        throw;
+    }
+}
 
 
 

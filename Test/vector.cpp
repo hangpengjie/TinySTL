@@ -1,5 +1,5 @@
-#include "vector.h"
+#include "./vector.h"
 int main() {
-    hstl::vector<int> v;
+    test_1();
     return 0;
 }
