@@ -81,5 +81,44 @@ ForwardIterator uninitialized_copy(InputIterator first, InputIterator last, Forw
 }
 
 
+/**
+ * uninitialized_move
+ */
+
+template <typename InputIterator, typename ForwardIterator>
+ForwardIterator __uninitialized_move_aux(InputIterator first, InputIterator last, ForwardIterator result, std::true_type) {
+    return std::move(first, last, result);
+}
+
+template <typename InputIterator, typename ForwardIterator>
+ForwardIterator __uninitialized_move_aux(InputIterator first, InputIterator last, ForwardIterator result, std::false_type) {
+    ForwardIterator cur = result;
+    try {
+        for (; first != last; ++first, ++cur) {
+            hstl::construct(&*cur, std::move(*first));
+        }
+    }catch (...) {
+        for (; result != cur; ++result) {
+            hstl::destroy(&*result);
+        }
+        throw;
+    }
+    return cur;
+}
+
+template <typename InputIterator, typename ForwardIterator>
+ForwardIterator __uninitialized_move(InputIterator first, InputIterator last, ForwardIterator result){
+    // std::is_pod is a type trait that checks if a type is a plain old data type.                        
+    // std::is_trivially_copy_assignable is a type trait that checks if a type is trivially copyable.
+    // std::is_pod is stricter thanstd::is_trivially_copy_assignable
+    return __uninitialized_move_aux(first, last, result, typename std::is_pod<typename std::iterator_traits<InputIterator>::value_type>());
+}
+
+template <typename InputIterator, typename ForwardIterator>
+ForwardIterator uninitialized_move(InputIterator first, InputIterator last, ForwardIterator result){
+    return __uninitialized_move(first, last, result);
+}
+
+
 
 }
