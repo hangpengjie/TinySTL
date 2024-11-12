@@ -12,8 +12,8 @@ inline void construct(T* ptr){
     ::new(static_cast<void*>(ptr)) T();
 }
 
-template <typename T>
-inline void construct(T* ptr, const T& value){
+template <typename Ty1, typename Ty2>
+inline void construct(Ty1* ptr, const Ty2& value){
     ::new(static_cast<void*>(ptr)) T(value);
 }
 
