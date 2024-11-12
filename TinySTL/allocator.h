@@ -23,6 +23,7 @@ public:
     static T *allocate(size_type n);
 
     static void deallocate(T *ptr);
+    static void deallocate(T *ptr, size_type n);
 
     static void construct(T *ptr);
     static void construct(T *ptr, const T &value);  
@@ -32,6 +33,9 @@ public:
     static void construct(T* ptr, Args&& ...args);
 
     static void destroy(T *ptr);
+
+    template <typename ForwardIterator>
+    static void destroy(ForwardIterator first, ForwardIterator last);
 };
 
 
@@ -50,6 +54,13 @@ template <typename T>
 void allocator<T>::deallocate(T *ptr) {
     if (ptr == nullptr) return;
     ::operator delete(ptr);
+}
+
+template <typename T>
+void allocator<T>::deallocate(T *ptr, size_type n) {
+    if (ptr == nullptr) return;
+    // release memory c++14 or later
+    ::operator delete(ptr, n * sizeof(T)); 
 }
 
 template <typename T>
@@ -78,6 +89,11 @@ void allocator<T>::destroy(T *ptr) {
     hstl::destroy(ptr);
 }
 
+template <typename T>
+template <typename ForwardIterator>
+void allocator<T>::destroy(ForwardIterator first, ForwardIterator last) {
+    hstl::destroy(first, last);
+}
 
 
 } // namespace hstl
