@@ -1,6 +1,2 @@
-*
-!*.h
-!*.cpp
-!*.pdf
-!*.txt
-!*.md
+.vscode
+*.exe
