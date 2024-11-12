@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <iostream>
 #include "allocator.h"
+#include "uninitialized.h"
 
 
 namespace hstl{
@@ -53,7 +54,7 @@ public:
     // const_iterator end() const noexcept;
 
     size_type size() const noexcept;
-    // size_type capacity() const noexcept;
+    size_type capacity() const noexcept;
     // bool empty() const noexcept;
 
     // void reserve(size_type new_cap);
@@ -86,7 +87,7 @@ vector<T>::vector() noexcept{
 
 template <typename T>
 vector<T>::vector(size_type n){
-    
+    fill_init(n, value_type());
 }
 
 
@@ -95,6 +96,10 @@ typename vector<T>::size_type vector<T>::size() const noexcept{
     return end_ - begin_;
 }
 
+template<typename T>
+typename vector<T>::size_type vector<T>::capacity() const noexcept{
+    return cap_ - begin_;
+}
 
 template <typename T>
 void vector<T>::try_init() noexcept{
@@ -111,7 +116,7 @@ template <typename T>
 void vector<T>::fill_init(size_type init_size, const value_type& value){
     const size_type init_cap = std::max(static_cast<size_type>(16), init_size);
     init_place(init_size, init_cap);
-       
+    hstl::uninitialized_fill_n(begin_, init_size, value);
 }
 
 
