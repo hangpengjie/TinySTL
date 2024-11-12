@@ -4,6 +4,7 @@
 #include <new>
 #include <type_traits>
 #include <utility>
+#include <iterator>
 
 namespace hstl{
 
@@ -23,18 +24,35 @@ inline void construct(T* ptr, Args&&... args){
 }
 
 template <typename T>
-inline void destroy(T* ptr, std::true_type){
+inline void destroy_aux(T* ptr, std::true_type){
 }
 
 template <typename T>
-inline void destroy(T* ptr, std::false_type){
+inline void destroy_aux(T* ptr, std::false_type){
     if(ptr == nullptr) return;
     ptr->~T();
 }
 
 template <typename T>
 inline void destroy(T* ptr){
-    destroy(ptr, std::is_trivially_destructible<T>());
+    destroy_aux(ptr, std::is_trivially_destructible<T>());
+}
+
+
+template <typename ForwardIterator>
+inline void destroy_aux(ForwardIterator first, ForwardIterator last, std::true_type){
+
+}
+
+template <typename ForwardIterator>
+inline void destroy_aux(ForwardIterator first, ForwardIterator last, std::false_type){
+    for(; first != last; ++first){
+        destroy(&*first);
+    }
+}
+template <typename ForwardIterator>
+inline void destroy(ForwardIterator first, ForwardIterator last){
+    destroy_aux(first, last, std::is_trivially_destructible<typename std::iterator_traits<ForwardIterator>::value_type>());
 }
 
 };
