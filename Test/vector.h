@@ -15,7 +15,8 @@ struct A{
 
 void test_1(){
     hstl::vector<int> v;
-    assert(v.size() == 16);
+    assert(v.size() == 0);
+    assert(v.capacity() == 16);
     std::cout << "vector test 1 passed" << std::endl;    
 }
 
@@ -28,7 +29,7 @@ void test_2(){
 
 void test_3(){
     hstl::vector<A> v;
-    assert(v.size() == 16);
+    assert(v.capacity() == 16);
     std::cout << "vector test 3 passed" << std::endl;    
 }
 
@@ -131,4 +132,108 @@ void test_13(){
     assert(v.size() == 17);
     assert(v[16] == 16);
     std::cout << "vector test 13 passed" << std::endl;
+}
+
+struct D{
+    int x;
+    int y;
+    int z;
+    D(int a, int b, int c) : x(a), y(b), z(c) {
+        std::cout << "A(int, int, int)" << std::endl;
+    }
+};
+void test_14(){
+    hstl::vector<D> v;
+    v.emplace_back(1,2,3);
+    assert(v[0].x == 1);
+    assert(v[0].y == 2);
+    assert(v[0].z == 3);
+    std::cout << "vector test 14 passed" << std::endl;  
+}
+
+void test_15(){
+    hstl::vector<int> v = {0,1,2,3,4,5,6,7,8,9,10};
+    v.erase(v.begin());
+    assert(v.size() == 10);
+    for(int i = 0; i < 10; i++){
+        assert(v[i] == i + 1);
+    }
+    std::cout << "vector test 15 passed" << std::endl;
+}
+
+void test_16(){
+    hstl::vector<int> v = {0,1,2,3,4,5,6,7,8,9,10};
+    v.erase(v.begin(), v.begin() + 5);
+    assert(v.size() == 6);
+    for(int i = 0; i < 6; i++){
+        assert(v[i] == i + 5);
+    }
+    std::cout << "vector test 16 passed" << std::endl;
+}
+
+void test_17(){
+    hstl::vector<int> v = {0,1,2,3,4,5,6,7,8,9,10};
+    auto it = v.erase(v.begin() + 5);
+    assert(*it == 6);
+    assert(v.size() == 10);
+    for(int i = 0; i < 5; i++){
+        assert(v[i] == i);
+    }
+    for(int i = 5; i < 10; i++){
+        assert(v[i] == i + 1);
+    }
+    std::cout << "vector test 17 passed" << std::endl;
+}
+
+void test_18(){
+    hstl::vector<int> v = {0,1,2,3,4,5,6,7,8,9,10};
+    v.resize(5);
+    assert(v.size() == 5);
+    for(int i = 0; i < 5; i++){
+        assert(v[i] == i);
+    }
+    std::cout << "vector test 18 passed" << std::endl;
+}
+
+void test_19(){
+    hstl::vector<int> v = {0,1,2,3,4,5,6,7,8,9,10};
+    v.resize(15,99);
+    assert(v.size() == 15);
+    for(int i = 11; i < 15; i++){
+        assert(v[i] == 99);
+    }
+    std::cout << "vector test 19 passed" << std::endl;
+}
+
+void test_20(){
+    hstl::vector<int> v = {0,1,2,3,4,5,6,7,8,9,10};
+    auto p = v.insert(v.begin() + 5, 99);
+    assert(v.size() == 12);
+    assert(v[5] == 99);
+    assert(v[6] == 5);
+    assert(*p == 99);
+    std::cout << "vector test 20 passed" << std::endl;
+}
+
+void test_21(){
+    hstl::vector<int> v = {0,1,2,3,4,5,6,7,8,9,10};
+    auto p = v.insert(v.begin() + 5, 3, 99);
+    assert(v.size() == 14);
+    assert(v[5] == 99);
+    assert(v[6] == 99);
+    assert(v[7] == 99);
+    assert(v[8] == 5);
+    assert(*p == 99);
+    std::cout << "vector test 21 passed" << std::endl;
+}
+
+void test_22(){
+    hstl::vector<int> v = {0,1,2,3,4,5,6,7,8,9,10};
+    v.reserve(100);
+    assert(v.capacity() >= 100);
+    assert(v.size() == 11);
+    for(int i = 0; i < 11; i++){
+        assert(v[i] == i);
+    }
+    std::cout << "vector test 22 passed" << std::endl;
 }

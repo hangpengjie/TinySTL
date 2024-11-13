@@ -61,22 +61,30 @@ public:
     const_reference operator[](size_type n) const;
     bool empty() const noexcept;
 
-    // void reserve(size_type new_cap);
-    // void resize(size_type count);
-    // void resize(size_type count, const value_type& value);
+    void reserve(size_type new_cap);
+    void resize(size_type new_size);
+    void resize(size_type new_size, const value_type& value);
 
     void push_back(const value_type& value);
     void push_back(value_type&& value);
+    
+    iterator insert(iterator position, const value_type& value);
+    iterator insert(iterator position, value_type&& value);
+    iterator insert(iterator position, size_type n, const value_type& value);
+    
+
+    template <typename... Args>
+    iterator emplace(iterator position, Args&&... args);
 
     template <typename... Args>
     void emplace_back(Args&&... args);
 
-    // void pop_back();
+    void pop_back();
+    iterator erase(iterator position);
+    iterator erase(iterator first, iterator last);
 
-    // void clear() noexcept;
-
-    // reference operator[](size_type n);
-    // const_reference operator[](size_type n) const;
+    void clear() noexcept;
+    void swap(vector& rhs) noexcept;
 private:
     void try_init() noexcept;
     void fill_init(size_type init_size, const value_type& value);
@@ -86,6 +94,9 @@ private:
     void range_init(InputIterator first, InputIterator last);
 
     void reallocate_insert(iterator position, const value_type& value);
+    
+    template <typename ... Args>
+    void reallocate_emplace(iterator position, Args&&... args);
 
     size_type get_new_cap(size_type add_size) const noexcept;
 };
@@ -206,7 +217,8 @@ template <typename T>
 void vector<T>::try_init() noexcept{
     try{
         begin_ = data_allocator::allocate(16);
-        end_ = cap_ = begin_ + 16;
+        end_ = begin_;
+        cap_ = begin_ + 16;
     }catch(...){
         begin_ = end_ = cap_ = nullptr;
     }
@@ -215,6 +227,35 @@ void vector<T>::try_init() noexcept{
 template <typename T>
 bool vector<T>::empty() const noexcept{
     return begin_ == end_;
+}
+
+template <typename T>
+void vector<T>::reserve(size_type new_cap){
+    if(capacity() < new_cap){
+        assert(new_cap < max_size());
+        auto old_size = size();
+        auto new_begin = data_allocator::allocate(new_cap);
+        hstl::uninitialized_move(begin_, end_, new_begin);
+        data_allocator::deallocate(begin_, cap_ - begin_);
+        begin_ = new_begin;
+        end_ = begin_ + old_size;
+        cap_ = begin_ + new_cap;
+    }    
+}
+
+
+template <typename T>
+void vector<T>::resize(size_type new_size){
+    resize(new_size, value_type());
+}
+
+template <typename T>
+void vector<T>::resize(size_type new_size, const value_type& value){
+    if(new_size < size()){
+        erase(begin() + new_size, end());
+    }else{
+        insert(end(), new_size - size(), value);
+    }
 }
 
 template <typename T>
@@ -228,16 +269,127 @@ void vector<T>::push_back(const value_type& value){
 
 template <typename T>
 void vector<T>::push_back(value_type&& value){
-    // TODO
+    emplace_back(std::move(value));
+}
+
+template <typename T>
+typename vector<T>::iterator vector<T>::insert(iterator position, const value_type& value){
+    assert(position >= begin() && position <= end());
+    const size_type xpos = position - begin_;
+    if(position == end_ && end_ != cap_){
+        data_allocator::construct(end_++, value);
+    } else if (end_ != cap_){
+        std::copy_backward(position, end_, end_ + 1);
+        data_allocator::construct(position, value);
+        ++end_;
+    }else{
+        reallocate_insert(position, value);
+    }
+    return begin_ + xpos;
+}
+
+template <typename T>
+typename vector<T>::iterator vector<T>::insert(iterator position, value_type&& value){
+    return emplace(position, std::move(value));
+}
+
+template <typename T>
+typename vector<T>::iterator vector<T>::insert(iterator position, size_type n, const value_type& value){
+    assert(position >= begin() && position <= end());
+    if(n == 0) return position;
+    const size_type xpos = position - begin_;
+    if(n <= static_cast<size_type>(cap_ - end_)){
+        std::copy_backward(position, end_, end_ + n);
+        hstl::uninitialized_fill_n(position, n, value);
+        end_ += n;
+    }else{
+        const size_type new_cap = get_new_cap(n);
+        iterator new_begin = data_allocator::allocate(new_cap);
+        iterator new_end = new_begin;
+        try{
+            new_end = hstl::uninitialized_move(begin_, position, new_begin);
+            new_end = hstl::uninitialized_fill_n(new_end, n,value);
+            new_end = hstl::uninitialized_move(position, end_, new_end);
+        }catch(...){
+            data_allocator::destroy(new_begin, new_end);
+            data_allocator::deallocate(new_begin, new_cap);
+            throw;
+        }
+        data_allocator::deallocate(begin_, cap_ - begin_);
+        begin_ = new_begin;
+        end_ = new_end;
+        cap_ = new_begin + new_cap;
+    }
+    return begin_ + xpos;
+}
+
+
+template <typename T>
+template <typename... Args>
+typename vector<T>::iterator  vector<T>::emplace(iterator position, Args&& ...args){
+    assert(position >= begin() && position <= end());
+    const size_type xpos = position - begin_;
+    if(position == end_ && end_ != cap_){
+        data_allocator::construct(end_++, std::forward<Args>(args)...);
+    } else if (end_ != cap_){
+        std::copy_backward(position, end_, end_ + 1);
+        data_allocator::construct(position, std::forward<Args>(args)...);
+        ++end_;
+    }else{
+        reallocate_emplace(position, std::forward<Args>(args)...);
+    }
+    return begin_ + xpos;
+    
 }
 
 template <typename T>
 template <typename... Args>
 void vector<T>::emplace_back(Args&&... args){
-    // TODO
-    
+    if(end_ != cap_){
+        data_allocator::construct(end_++, std::forward<Args>(args)...);
+    }else{
+        reallocate_emplace(end_, std::forward<Args>(args)...);
+    }
 }
 
+template <typename T>
+void vector<T>::pop_back(){
+    assert(!empty());
+    data_allocator::destroy(--end_);
+}
+
+template <typename T>
+typename vector<T>::iterator vector<T>::erase(iterator position){
+    assert(position >= begin_ && position < end_);
+    if(position + 1 != end_){
+        std::move(position + 1, end_, position);
+    }
+    data_allocator::destroy(--end_);
+    return position;
+}
+
+template <typename T>
+typename vector<T>::iterator vector<T>::erase(iterator first, iterator last){
+    assert(first >= begin_ && first <= last && last <= end_);
+    iterator new_end = std::move(last, end_, first);
+    data_allocator::destroy(new_end, end_);
+    end_ = new_end;
+    return first;
+}
+
+template <typename T>
+void vector<T>::clear() noexcept{
+    erase(begin(), end());
+}
+
+template <typename T>
+void vector<T>::swap(vector& rhs) noexcept{
+    if(this != &rhs){
+        std::swap(begin_, rhs.begin_);
+        std::swap(end_, rhs.end_);
+        std::swap(cap_, rhs.cap_);
+    }
+}
 
 template <typename T>
 void vector<T>::fill_init(size_type init_size, const value_type& value){
@@ -276,6 +428,27 @@ void vector<T>::reallocate_insert(iterator position, const value_type& value){
     try{
         new_end = hstl::uninitialized_move(begin_, position, new_begin);
         data_allocator::construct(new_end++, value);
+        new_end = hstl::uninitialized_move(position, end_, new_end);
+    }catch(...){
+        data_allocator::deallocate(new_begin, new_cap);
+        throw;
+    }
+    hstl::destroy(begin_, end_);
+    data_allocator::deallocate(begin_, cap_ - begin_);
+    begin_ = new_begin;
+    end_ = new_end;
+    cap_ = begin_ + new_cap;
+}
+
+template  <typename T>
+template <typename ... Args>
+void vector<T>::reallocate_emplace(iterator position, Args&&... args){
+    const size_type new_cap = get_new_cap(1);
+    iterator new_begin = data_allocator::allocate(new_cap);
+    iterator new_end = new_begin;
+    try{
+        new_end = hstl::uninitialized_move(begin_, position, new_begin);
+        data_allocator::construct(new_end++, std::forward<Args>(args)...);
         new_end = hstl::uninitialized_move(position, end_, new_end);
     }catch(...){
         data_allocator::deallocate(new_begin, new_cap);
