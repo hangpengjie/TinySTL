@@ -84,4 +84,52 @@ void test_7(){
     }
     std::cout << "list test 7 passed" << std::endl;
 }
+
+
+void test_8(){
+    hstl::list<int> l({1,2,3,4,5,6,7,8,9,10});
+    auto it = l.begin();
+    auto it2 = l.insert(it, 100);
+    assert(l.size() == 11);
+    assert(*it == 1);    
+    it2--;
+    assert(*it2 == 100);
+    std::cout << "list test 8 passed" << std::endl;
+}
+
+
+void test_9(){
+    hstl::list<int> l({1,2,3,4,5,6,7,8,9,10});
+    l.push_back(11);
+    assert(l.size() == 11);
+    int i = 1;
+    for(auto it = l.begin(); it != l.end(); ++it,++i){
+        assert(*it == i);
+    }
+    std::cout << "list test 9 passed" << std::endl;
+}
+
+void test_10(){
+    hstl::list<int> l({1,2,3,4,5,6,7,8,9,10});
+    l.pop_back();
+    assert(l.size() == 9);
+    std::cout << "list test 10 passed" << std::endl;
+}
+
+void test_11(){
+    hstl::list<int> l({1,2,3,4,5,6,7,8,9,10});
+    l.push_front(11);
+    assert(l.size() == 11);
+    assert(*l.begin() == 11);
+    assert(l.front() == 11);
+    assert(l.size() == 11);
+    l.push_back(12);
+    assert(l.back() == 12);
+    assert(l.size() == 12);
+    l.pop_front();
+    assert(l.front() == 1);
+    assert(l.size() == 11);
+    std::cout << "list test 11 passed" << std::endl;
+}
+
 #endif

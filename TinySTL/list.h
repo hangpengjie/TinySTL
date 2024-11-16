@@ -119,11 +119,23 @@ public:
     iterator begin();
     iterator end();
     size_type size();
+    
     template <typename InputIterator>
     iterator insert(iterator pos ,InputIterator first, InputIterator last);
+    
+    iterator insert(iterator pos, const value_type& value);
 
     iterator erase(iterator first, iterator last);
-
+    
+    void push_back(const value_type& value);
+    void pop_back();
+    
+    void push_front(const value_type& value);
+    void pop_front();
+    
+    reference front();
+    reference back();
+    
     void clear();
     
 private:
@@ -249,6 +261,14 @@ typename list<T>::iterator list<T>::insert(iterator pos, InputIterator first, In
 }
 
 template <typename T>
+typename list<T>::iterator list<T>::insert(iterator pos, const value_type& value){
+    auto cur = create_node(value);
+    link_nodes(pos.node_, cur, cur);
+    ++size_;
+    return pos;
+}
+
+template <typename T>
 typename list<T>::iterator list<T>::erase(iterator first, iterator last){
     if(first == last) return last;
     unlink_nodes(first.node_, last.node_->prev);
@@ -259,6 +279,49 @@ typename list<T>::iterator list<T>::erase(iterator first, iterator last){
         --size_;
     }
     return last;
+}
+
+template <typename T>
+void list<T>::push_back(const value_type& value){
+    auto cur = create_node(value);
+    link_nodes(node_, cur, cur);
+    ++size_;
+}
+
+template <typename T>
+void list<T>::pop_back(){
+    if (size_){
+        node_ptr last = node_->prev;
+        unlink_nodes(last, last);
+        --size_;
+    }
+}
+
+
+template <typename T>
+void list<T>::push_front(const value_type& value){
+    auto cur = create_node(value);
+    link_nodes(node_->next, cur, cur);
+    ++size_;
+}
+
+template <typename T>
+void list<T>::pop_front(){
+    if(size_){
+        node_ptr first = node_->next;
+        unlink_nodes(first, first);
+        --size_;
+    }
+}
+
+template <typename T>
+typename list<T>::reference list<T>::front(){
+    return *begin();
+}
+
+template <typename T>
+typename list<T>::reference list<T>::back(){
+    return *(--end());
 }
 
 template <typename T>
