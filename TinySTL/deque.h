@@ -271,6 +271,10 @@ public:
     deque();
     explicit deque(size_type n);
     deque(size_type n, const value_type& value);
+    
+    template <typename Iterator, typename = typename std::enable_if<
+        std::is_convertible<typename std::iterator_traits<Iterator>::iterator_category, std::input_iterator_tag>::value>::type>
+    deque(Iterator first, Iterator last);
 
 public:
     iterator begin() noexcept;
@@ -278,11 +282,28 @@ public:
     const_iterator begin() const noexcept;
     const_iterator end() const noexcept;
     size_type size() const noexcept;
+    
+    template <typename... Args>
+    void emplace_front(Args&&... args); //TODO
+
+    template <typename... Args>
+    void emplace_back(Args&&... args); 
+    
 private:
     void map_init(size_type n_elements);
     map_pointer allocate_map(size_type map_size);
     void allocate_node(map_pointer nstart, map_pointer nfinish);
     void fill_init(size_type n, const value_type& value);
+
+    template <typename Iterator>
+    void copy_init(Iterator first, Iterator last, std::input_iterator_tag);
+
+    template <typename Iterator>
+    void copy_init(Iterator first, Iterator last, std::forward_iterator_tag);
+
+    void require_capacity(size_type n_elements, bool is_front);
+    
+    void reallocate_map(size_type need_nodes, bool is_front);
 };
 
 
@@ -301,6 +322,13 @@ template <typename T>
 deque<T>::deque(size_type n, const value_type& value){
     map_init(n);
     fill_init(n, value);
+}
+
+template <typename T>
+template <typename Iterator, typename>
+deque<T>::deque(Iterator first, Iterator last){
+    typedef typename std::iterator_traits<Iterator>::iterator_category category;
+    copy_init(first, last, category());
 }
 
 template <typename T>
@@ -327,6 +355,28 @@ template <typename T>
 typename deque<T>::size_type deque<T>::size() const noexcept{
     return end_ - begin_;
 }
+
+
+template <typename T>
+template <typename ...Args>
+void deque<T>::emplace_front(Args&&... args){
+
+}
+
+template <typename T>
+template <typename ...Args>
+void deque<T>::emplace_back(Args&&... args){
+    // actually, there are two positions to use in the end, to prevent unauthorized access
+    if(end_.cur != end_.last - 1){
+        data_allocator::construct(end_.cur, std::forward<Args>(args)...);
+        ++end_.cur;
+    }else{
+        require_capacity(1, false);
+        data_allocator::construct(end_.cur, std::forward<Args>(args)...);
+        ++end_;
+    }
+}
+
 
 
 template <typename T>
@@ -388,6 +438,69 @@ void deque<T>::fill_init(size_type n, const value_type& value){
 }
 
 
+template <typename T>
+template <typename Iterator>
+void deque<T>::copy_init(Iterator first, Iterator last, std::input_iterator_tag){
+    const size_type n = std::distance(first, last);
+    map_init(n);
+    for(;first != last; ++first){
+        emplace_back(*first);
+    }
+}
+
+template <typename T>
+template <typename Iterator>
+void deque<T>::copy_init(Iterator first, Iterator last, std::forward_iterator_tag){
+    const size_type n = std::distance(first, last);
+    map_init(n);
+    for(auto cur = begin_.node; cur < end_.node; ++cur){
+        auto next = first;
+        std::advance(next, buffer_size);
+        hstl::uninitialized_copy(first, next, *cur);
+        first = next;
+    }
+    hstl::uninitialized_copy(first, last, end_.first);
+}
+
+
+template <typename T>
+void deque<T>::require_capacity(size_type n_elements, bool is_front){
+    if(is_front && (static_cast<size_type> (begin_.cur - begin_.first) < n_elements )){
+        
+    }else if (!is_front && (static_cast<size_type> (end_.last - end_.cur - 1) < n_elements )){
+        const size_type need_nodes = (n_elements - (end_.last - end_.cur - 1)) / buffer_size + 1;
+        if(need_nodes > static_cast<size_type> ((map_ + map_size_) - end_.node - 1)){
+            reallocate_map(need_nodes, is_front);
+        }else{
+            allocate_node(end_.node + 1, end_.node + need_nodes);
+        }
+    }
+}
+
+template <typename T>
+void deque<T>::reallocate_map(size_type need_nodes, bool is_front){
+    if(is_front){
+        
+    }else{
+        const size_type new_map_size  = std::max(map_size_ << 1, map_size_ + need_nodes + DEQUE_MAP_SIZE);
+        map_pointer new_map = allocate_map(new_map_size);
+        const size_type old_nodes = end_.node - begin_.node + 1;
+        const size_type new_nodes = old_nodes + need_nodes;
+
+        auto begin = new_map + (new_map_size - new_nodes) / 2;
+        auto mid = begin + old_nodes;
+        auto end = mid + need_nodes;
+        for(auto cur = begin, b = begin_.node; cur != mid; ++cur, ++b){
+            *cur = *b;
+        }
+        allocate_node(mid, end-1);
+        map_allocator::deallocate(map_, map_size_);
+        map_ = new_map;
+        map_size_ = new_map_size;
+        begin_ = iterator(*begin + (begin_.cur - begin_.first), begin);
+        end_ = iterator(*(mid - 1) + (end_.cur - end_.first), mid - 1);
+    }
+}
 
 } // namespace hstl
 
