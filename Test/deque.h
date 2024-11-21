@@ -89,4 +89,23 @@ void test_7(){
     std::cout << "deque test 7 passed" << std::endl;
 }
 
+void test_8(){
+    hstl::deque<int> d;
+    for(int i=0;i < 100000; ++i){
+        d.emplace_back(i);
+    }
+    assert(d.size() == 100000);
+    int i = 0;
+    for(auto cur = d.begin(); cur != d.end(); ++ cur, ++i){
+        assert(*cur == i);
+    }
+    assert(!d.empty());
+    for(i=0;i < 100000; ++i){
+        assert(d.front() == i);
+        d.pop_front();
+    }
+    assert(d.size() == 0);
+    std::cout << "deque test 8 passed" << std::endl;
+}
+
 #endif

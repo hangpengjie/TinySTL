@@ -284,6 +284,8 @@ public:
     const_iterator end() const noexcept;
     size_type size() const noexcept;
     bool empty() const noexcept;
+    reference front();
+    reference back();
     
     template <typename... Args>
     void emplace_front(Args&&... args); 
@@ -373,6 +375,15 @@ bool deque<T>::empty() const noexcept{
     return begin_ == end_;
 }
 
+template <typename T>
+typename deque<T>::reference deque<T>::front(){
+    return *begin_;
+}
+
+template <typename T>
+typename deque<T>::reference deque<T>::back(){
+    return *(end_ - 1);
+}
 
 template <typename T>
 template <typename ...Args>
