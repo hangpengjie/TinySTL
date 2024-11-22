@@ -300,6 +300,7 @@ public:
     
     void pop_front();
     void pop_back();
+    void clear() noexcept;
     
 private:
     void map_init(size_type n_elements);
@@ -472,6 +473,21 @@ void deque<T>::pop_back(){
         data_allocator::destroy(end_.cur);
         destroy_nodes(end_.node + 1, end_.node + 1);
     }
+}
+
+template <typename T>
+void deque<T>::clear() noexcept{
+    for(auto cur = begin_.node + 1; cur < end_.node; ++cur){
+        data_allocator::destroy(*cur, *cur + buffer_size);
+    }
+    if(begin_.node != end_.node){
+        data_allocator::destroy(begin_.cur, begin_.last);
+        data_allocator::destroy(end_.first, end_.cur);
+    }else{
+        data_allocator::destroy(begin_.cur, end_.cur);
+    }
+    destroy_nodes(begin_.node + 1, end_.node);
+    end_ = begin_;
 }
 
 
