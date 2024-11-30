@@ -3,6 +3,7 @@
 
 #include <iterator>
 #include <type_traits>
+#include <cassert>
 #include "allocator.h"
 #include "construct.h"
 
@@ -55,8 +56,8 @@ public:
     node_pointer node;
     node_pointer header;
 
-    avl_iterator(node_pointer x,node_pointer header) node(x), header(header) {}
-    avl_iterator(const iterator& it) node(it.node),header(it.header) {}
+    avl_iterator(node_pointer x,node_pointer header):node(x), header(header) {}
+    avl_iterator(const iterator& it):node(it.node),header(it.header) {}
 
     reference operator*() const{
         return node->data;
@@ -163,8 +164,11 @@ private:
 public:
     avl_tree();
     iterator insert_equal(const T& value);
+    void remove_value(const T& value);
     iterator begin();
     iterator end();
+    size_type size();
+    bool is_balanced();
 
 
 private:
@@ -177,6 +181,10 @@ private:
     void balance_avl(node_ptr x);
     void rotate_left(node_ptr x);
     void rotate_right(node_ptr x);
+    void rotate_left_right(node_ptr x);
+    void rotate_right_left(node_ptr x);
+    std::pair<bool, int> is_balanced(node_ptr x);
+    node_ptr remove_node(node_ptr& p,const T& value);
 
 };
 
@@ -189,6 +197,7 @@ avl_tree<T>::avl_tree(){
     rightmost() = header_;
 }
 
+
 template <typename T>
 typename avl_tree<T>::iterator avl_tree<T>::insert_equal(const T& value){
     node_ptr p = create_node(value);
@@ -197,6 +206,7 @@ typename avl_tree<T>::iterator avl_tree<T>::insert_equal(const T& value){
         root() = p;
         leftmost() = p;
         rightmost() = p;
+        p->parent = header_;
     }else{
         while(true){
             if(value < cur->data){
@@ -230,6 +240,56 @@ typename avl_tree<T>::iterator avl_tree<T>::insert_equal(const T& value){
 }
 
 template <typename T>
+void avl_tree<T>::remove_value(const T& value){
+    node_ptr p = remove_node(root(),value);
+    --size_;
+    if(p == header_) return;
+    if(p->right){
+        p->bf += 1;
+    }else if(p->left){
+        p->bf -= 1;
+    }else{
+        p->bf = 0;
+    }
+    node_ptr y = p->parent;
+    while(p != header_){
+        bool is_left = y->left == p;
+        if(p->bf == 1 || p->bf == -1){
+            break;
+        }else if (p->bf == -2){
+            node_ptr x = p->left;
+            if(x->bf == 1){
+                rotate_left_right(p);
+            }else{
+                rotate_right(p);
+            }
+            
+        } else if (p->bf == 2){
+            node_ptr x = p->right;
+            if(x->bf == -1){
+                rotate_right_left(p);
+            }else{
+                rotate_left(p);
+            }
+        
+        }
+        p = is_left ? y->left: y->right;
+        if(p->bf == 0){
+            if(y->left == p){
+                y->bf += 1;
+            }else{
+                y->bf -= 1;
+            }
+            p = y;
+            y = y->parent;
+        }
+    
+    }
+
+}
+
+
+template <typename T>
 typename avl_tree<T>::iterator avl_tree<T>::begin(){
     return iterator(leftmost(), header_);
 }
@@ -237,6 +297,16 @@ typename avl_tree<T>::iterator avl_tree<T>::begin(){
 template <typename T>
 typename avl_tree<T>::iterator avl_tree<T>::end(){
     return iterator(header_, header_);
+}
+
+template <typename T>
+typename avl_tree<T>::size_type avl_tree<T>::size(){
+    return size_;
+}
+
+template <typename T>
+bool avl_tree<T>::is_balanced(){
+    return is_balanced(root()).first;
 }
 
 template <typename T>
@@ -282,7 +352,7 @@ typename avl_tree<T>::node_ptr& avl_tree<T>::rightmost() const{
 
 template <typename T>
 void avl_tree<T>::balance_avl(node_ptr x){
-    while(x != header_){
+    while(x != root()){
         node_ptr y = x->parent;
         if(x == y->left){
             --y->bf;
@@ -295,18 +365,16 @@ void avl_tree<T>::balance_avl(node_ptr x){
             x = y;
         }else if(y->bf == -2){
             if(x->bf == -1){
-                rotate_left(y);
+                rotate_right(y);
             }else{
-                rotate_right(x);
-                rotate_left(y);
+                rotate_left_right(y);
             }
             break;
         }else if (y->bf == 2){
             if(x->bf == 1){
-                rotate_right(y);
+                rotate_left(y);
             }else{
-                rotate_left(x);
-                rotate_right(y);
+                rotate_right_left(y);
             }
             break;
         }
@@ -316,10 +384,158 @@ void avl_tree<T>::balance_avl(node_ptr x){
 
 template <typename T>
 void avl_tree<T>::rotate_left(node_ptr x){
+    node_ptr parent = x->parent;
+    node_ptr sub_r = x->right;
+    node_ptr sub_rl = sub_r->left;
+    x->right = sub_rl;
+    if(sub_rl != nullptr){
+        sub_rl->parent = x;
+    }
+    sub_r->left = x;
+    x->parent = sub_r;
+    if(parent == header_){
+        root() = sub_r;
+        sub_r->parent = header_;
+    }else{
+        if(x == parent->left){
+            parent->left = sub_r;
+        }else{
+            parent->right = sub_r;
+        }
+        sub_r->parent = parent;
+    }
+    if(sub_r->bf == 0){
+        x->bf = 1;
+        sub_r->bf = -1;
+    }else{
+        x->bf = sub_r->bf = 0;
+    }
+    
+    
 }
 
 template <typename T>
 void avl_tree<T>::rotate_right(node_ptr x){
+    node_ptr parent = x->parent;
+    node_ptr sub_l = x->left;
+    node_ptr sub_lr = sub_l->right;
+    x->left = sub_lr;
+    if(sub_lr != nullptr){
+        sub_lr->parent = x;
+    }
+    sub_l->right = x;
+    x->parent = sub_l;
+    if(parent == header_){
+        root() = sub_l;
+        sub_l->parent = header_;
+    }else{
+        if(x == parent->left){
+            parent->left = sub_l;
+        }else{
+            parent->right = sub_l;
+        }
+        sub_l->parent = parent;
+    }
+    if(sub_l->bf == 0){
+        x->bf = -1;
+        sub_l->bf = 1;
+    }else{
+        x->bf = sub_l->bf = 0;
+    }
+    
+
+}
+
+template <typename T>
+void avl_tree<T>::rotate_left_right(node_ptr x){
+    node_ptr sub_l = x->left;
+    node_ptr sub_lr = sub_l->right;
+    int sub_lr_bf = sub_lr->bf;
+    rotate_left(sub_l);
+    rotate_right(x);
+    if(sub_lr_bf == 0){
+        x->bf = sub_l->bf = sub_lr->bf = 0;
+    }else if (sub_lr_bf == -1){
+        sub_l->bf = sub_lr->bf = 0;
+        x->bf = 1;
+    }else if (sub_lr_bf == 1){
+        sub_l->bf = -1;
+        x->bf = sub_lr->bf = 0;
+    }else{
+        assert(false);
+    }
+    
+    
+}
+
+template <typename T>
+void avl_tree<T>::rotate_right_left(node_ptr x){
+    node_ptr sub_r = x->right;
+    node_ptr sub_rl = sub_r->left;
+    int sub_rl_bf = sub_rl->bf;
+    rotate_right(sub_r);
+    rotate_left(x);
+    if(sub_rl_bf == 0){
+        x->bf = sub_r->bf = sub_rl->bf = 0;
+    }else if (sub_rl_bf == 1){
+        sub_r->bf= sub_rl->bf = 0;
+        x->bf = -1;
+    }else if (sub_rl_bf == -1){
+        sub_r->bf = 1;
+        x->bf = sub_rl->bf = 0;
+    }else{
+        assert(false);
+    }
+}
+
+template <typename T>
+std::pair<bool, int> avl_tree<T>::is_balanced(node_ptr x){
+    if(x == nullptr){
+        return std::make_pair(true, 0);
+    }
+    auto l = is_balanced(x->left);
+    auto r = is_balanced(x->right);
+    bool flag = l.first && r.first && (r.second - l.second == x->bf) && abs(x->bf) < 2;
+   
+    return std::make_pair(flag, std::max(l.second, r.second) + 1);
+}
+
+
+template <typename T>
+typename avl_tree<T>::node_ptr avl_tree<T>::remove_node(node_ptr &p, const T& value){
+    if(p == nullptr)    return header_;
+    if(p->data < value){
+        return remove_node(p->right, value);
+    }else if (p->data > value){
+        return remove_node(p->left, value);
+    }else{
+        node_ptr ret = p;
+        if(p->left == nullptr || p->right == nullptr){
+            if(p == leftmost()){
+                leftmost() = (++iterator(p, header_)).node;
+            }
+            if(p == rightmost()){
+                rightmost() = (--iterator(p, header_)).node;
+            }
+            node_ptr temp = p->left != nullptr ? p->left : p->right;
+            if(temp == nullptr){
+                ret = p->parent;
+                temp = p;
+                p = nullptr;
+            }else{
+                p->data = temp->data;
+                p->left = p->right = nullptr;
+            }
+            destroy_node(temp);
+            return ret;
+        }else{
+            iterator it = iterator(p, header_);
+            ++it;
+            p->data = it.node->data;
+            return remove_node(p->right, it.node->data);
+        }
+    }
+    
 }
 
 } // namespace hstl
