@@ -172,6 +172,22 @@ inline bool rb_tree_is_right_child(const rb_tree_node_base* x){
     return x->parent->right == x;
 }
 
+inline rb_tree_node_base* rb_tree_get_next(rb_tree_node_base* x){
+    if(x->right != nullptr){
+        return rb_tree_node_base::minimum(x->right);
+    }
+    rb_tree_node_base* y = x->parent;
+    while(x == y->right){
+        x = y;
+        y = y->parent;
+    }
+    if(x->right != y){
+        return y;
+    }else{
+        return x;
+    }
+}
+
 inline void rb_tree_rotate_left(rb_tree_node_base* x, rb_tree_node_base*& root){
     rb_tree_node_base *y = x->right;
     x->right = y->left;
@@ -264,6 +280,131 @@ inline void rb_tree_insert_rebalance(rb_tree_node_base* x, rb_tree_node_base*& r
     rb_tree_set_black(root); // keep root black
 }
 
+// TODO
+inline void rb_tree_erase_rebalance(rb_tree_node_base* z, rb_tree_node_base*& root, rb_tree_node_base*& leftmost, rb_tree_node_base*& rightmost){
+    rb_tree_node_base* y = (z->left == nullptr || z->right == nullptr) ? z : rb_tree_get_next(z); // y is the node to be deleted
+    rb_tree_node_base* x = nullptr;  // x is the child of y or nullptr
+    rb_tree_node_base* xp = nullptr; // xp is the parent of x
+    if(z != y){ // z have two children
+        x = y->right; // y must have no left child, x may be nullptr
+        z->left->parent = y;
+        y->left = z->left;
+        if(y != z->right){
+            xp = y->parent;
+            if(x != nullptr){
+                x->parent = y->parent;
+            }
+            y->parent->left = x;
+            y->right = z->right;
+            z->right->parent = y;
+        }else{
+            xp = y;
+        }
+        if(z == root){
+            root = y;
+        }else if(rb_tree_is_left_child(z)){
+            z->parent->left = y;
+        }else{
+            z->parent->right = y;
+        }
+        y->parent = z->parent;
+        std::swap(y->color, z->color);
+        y = z;
+    }else{
+        x = y->left != nullptr ? y->left : y->right;
+        if(x != nullptr){
+            x->parent = y->parent;
+        }
+        if(z == root){
+            root = x;
+        }else if(rb_tree_is_left_child(z)){
+            z->parent->left = x;
+        }else{
+            z->parent->right = x;
+        }
+        xp = y->parent;
+        if(z == leftmost){
+            leftmost = (x == nullptr) ? xp : rb_tree_node_base::minimum(x);
+        }
+        if(z == rightmost){
+            rightmost = (x == nullptr) ? xp : rb_tree_node_base::maximum(x);
+        }
+    }
+
+    // 此时，y 指向要删除的节点，x 为替代节点，从 x 节点开始调整。
+    // 如果删除的节点为红色，树的性质没有被破坏，否则按照以下情况调整（x 为左子节点为例）：
+    // case 1: 兄弟节点为红色，令父节点为红，兄弟节点为黑，进行左（右）旋，继续处理
+    // case 2: 兄弟节点为黑色，且两个子节点都为黑色或 NIL，令兄弟节点为红，父节点成为当前节点，继续处理
+    // case 3: 兄弟节点为黑色，左子节点为红色或 NIL，右子节点为黑色或 NIL，
+    //         令兄弟节点为红，兄弟节点的左子节点为黑，以兄弟节点为支点右（左）旋，继续处理
+    // case 4: 兄弟节点为黑色，右子节点为红色，令兄弟节点为父节点的颜色，父节点为黑色，兄弟节点的右子节点
+    //         为黑色，以父节点为支点左（右）旋，树的性质调整完成，算法结束
+    if(rb_tree_is_black(y)){
+        while(x != root &&(x == nullptr || rb_tree_is_black(x))){
+            if(x == xp->left){
+                rb_tree_node_base* bro = xp->right;
+                if(rb_tree_is_red(bro)){ // case 1
+                    rb_tree_set_black(bro);
+                    rb_tree_set_red(xp);
+                    rb_tree_rotate_left(xp, root);
+                    bro = xp->right;
+                }
+                if((bro->left == nullptr || rb_tree_is_black(bro->left)) && (bro->right == nullptr || rb_tree_is_black(bro->right))){ // case 2
+                    rb_tree_set_red(bro);
+                    x = xp;
+                    xp = xp->parent;
+                }else{
+                    if(bro->right == nullptr || rb_tree_is_black(bro->right)){ // case 3
+                        rb_tree_set_black(bro->left);
+                        rb_tree_set_red(bro);
+                        rb_tree_rotate_right(bro, root);
+                        bro = xp->right;
+                    }
+                    // case 4
+                    bro->color = xp->color;
+                    rb_tree_set_black(xp);
+                    if(bro->right != nullptr){
+                        rb_tree_set_black(bro->right);
+                    }
+                    rb_tree_rotate_left(xp, root);
+                    break;
+                }
+            }else{
+                rb_tree_node_base* bro = xp->left;
+                if(rb_tree_is_red(bro)){ // case 1
+                    rb_tree_set_black(bro);
+                    rb_tree_set_red(xp);
+                    rb_tree_rotate_right(xp, root);
+                    bro = xp->left;
+                }
+                if((bro->left == nullptr || rb_tree_is_black(bro->left)) && (bro->right == nullptr || rb_tree_is_black(bro->right))){ // case 2
+                    rb_tree_set_red(bro);
+                    x = xp;
+                    xp = xp->parent;
+                }else{
+                    if(bro->left == nullptr || rb_tree_is_black(bro->left)){ // case 3
+                        rb_tree_set_black(bro->right);
+                        rb_tree_set_red(bro);
+                        rb_tree_rotate_left(bro, root);
+                        bro = xp->left;
+                    }
+                    // case 4
+                    bro->color = xp->color;
+                    rb_tree_set_black(xp);
+                    if(bro->left != nullptr){
+                        rb_tree_set_black(bro->left);
+                    }
+                    rb_tree_rotate_right(xp, root);
+                    break;
+                }
+            }
+        }
+        if(x != nullptr){
+            rb_tree_set_black(x);
+        }
+    }
+    return;
+}
 
 
 template <typename T, typename Compare>
@@ -306,9 +447,11 @@ private:
 public:
     rb_tree();
     iterator insert_equal(const value_type& value); // insert value into rb_tree (allowing duplicate values)
+    iterator erase(iterator position); // erase node at position
 private:
     link_type get_node();
     link_type create_node(const value_type& value);
+    void destroy_node(link_type p);
     iterator insert_node(base_ptr y_, const value_type& value);
 
 };
@@ -336,6 +479,18 @@ typename rb_tree<T, Compare>::iterator rb_tree<T, Compare>::insert_equal(const v
 }
 
 template <typename T, typename Compare>
+typename rb_tree<T, Compare>::iterator rb_tree<T, Compare>::erase(iterator position){
+    link_type y = static_cast<link_type>(position.node);
+    iterator next(y);
+    ++next;
+    rb_tree_erase_rebalance(base_ptr(y), header_->parent, header_->left, header_->right);
+    destroy_node(y);
+    --size_;
+    return next;
+
+}
+
+template <typename T, typename Compare>
 typename rb_tree<T, Compare>::link_type rb_tree<T, Compare>::get_node(){
     return node_allocator::allocate();
 }
@@ -352,6 +507,12 @@ typename rb_tree<T, Compare>::link_type rb_tree<T, Compare>::create_node(const v
         throw;
     }
     return p;
+}
+
+template <typename T, typename Compare>
+void rb_tree<T, Compare>::destroy_node(link_type p){
+    hstl::destroy(&(p->data));
+    node_allocator::deallocate(p);
 }
 
 template <typename T, typename Compare>
